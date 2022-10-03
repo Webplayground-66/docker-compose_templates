@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+    db:
+      image: postgres:latest
+      container_name: db
+      volumes:
+       - liens_vers_fichier_sql:/docker-entrypoint-initdb.d # liens vers le fichier sql
+       - volume_docker:/var/lib/postgresql/data # volume pour la persistance des données
+      restart: always # redémarrage automatique
+      environment:
+        POSTGRES_PASSWORD: password
+        POSTGRES_USER: user
+        POSTGRES_DB: db
+        ports: 5432
+      labels:
+        - traefik.enable=false # pas de reverse proxy
+      networks:
+        - web # réseau pour la communication entre les containers
+
+    app:
+      build:
+        context: .
+        dockerfile: ./Dockerfile
+      image: app # nom de l'image
+      depends_on:
+        - db # dépendance du container app sur le container db 
+      stdin_open: true # permet de lancer le container en mode interactif
+      tty: true # permet de lancer le container en mode interactif
+      expose:
+        - 3000 # port exposé
+      links:
+        - db # permet de lier le container app au container db
+      labels:
+        - traefik.http.routers.nomDeMaRegle1.rule=Host(`monURL.fr`, `www.monURL.fr`) #nom de la règle (generalement le nom du container) configuration du domaine
+        - traefik.http.routers.nomDeMaRegle2.tls=true #nom de la règle (generalement le nom du container) configuration du https
+        - traefik.http.routers.nomDeMaRegle3.tls.certresolver=lets-encrypt #nom de la règle (generalement le nom du container) configuration du certificat
+        - traefik.port=80 #port liaison traefik
+      networks:
+        - web #nom du réseau interne docker
+
+volumes:
+    nom_de_mon_service_db: #nom du volume
+        external: false
+
+networks:
+  web:
+    external: true # reseau externe
