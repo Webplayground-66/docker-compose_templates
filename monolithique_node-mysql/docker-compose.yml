@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+    db:
+      image: mysql:5.7
+      container_name: # nom du container
+      volumes:
+        - liens_vers_dossier_stockage_db:/var/lib/mysql            #stockage
+        - liens_vers_fichier_sql:/docker-entrypoint-initdb.d   #importation data existante
+      restart: always # redemarrage automatique
+      environment:
+        MYSQL_ROOT_PASSWORD: # mot de passe root
+        MYSQL_DATABASE: # nom de la base de donnees
+        MYSQL_USER: # nom de l'utilisateur
+        MYSQL_PASSWORD: # mot de passe de l'utilisateur
+      labels:
+        - traefik.enable=false # pas de redirection vers le serveur web
+
+    app:
+      build:
+        context: .
+        dockerfile: ./Dockerfile # fichier de configuration
+      image: # nom de l'image
+      depends_on:
+        - db # dependance du container
+      stdin_open: true # ouverture du terminal
+      tty: true # ouverture du terminal
+      restart: always # redemarrage automatique
+      expose:
+        - 3000 # port d'ecoute
+      links:
+        - db # lien avec le container db
+      labels:
+        - traefik.http.routers.nomDeMaRegle1.rule=Host(`monURL.fr`, `www.monURL.fr`) #nom de la règle (generalement le nom du container) configuration du domaine
+        - traefik.http.routers.nomDeMaRegle2.tls=true #nom de la règle (generalement le nom du container) configuration du https
+        - traefik.http.routers.nomDeMaRegle3.tls.certresolver=lets-encrypt #nom de la règle (generalement le nom du container) configuration du certificat
+        - traefik.port=80 #port liaison traefik
+      networks:
+        - web #nom du réseau interne docker
+
+networks:
+  default:
+    external:
+      name: web #nom du réseau interne docker
