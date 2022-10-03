@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+
+# service phpmyadmin uniquement pour mysql
+    phpmyadmin:
+      image: phpmyadmin
+      container_name: phpmyadmin
+      restart: always
+      environment:
+        PMA_HOSTS: liste des serveurs mysql
+      labels:
+        - traefik.http.routers.phpmyadmin.rule=Host(`monURL.fr`) # avec ou sans sous domaine
+        - traefik.http.routers.phpmyadmin.tls=true # utiliser le certificat TLS
+        - traefik.http.routers.phpmyadmin.tls.certresolver=lets-encrypt  # certificat TLS
+        - traefik.port=8080 # port du service au choix sauf port reservé
+
+# service adminer compatible avec tous les serveurs de base de données
+    adminer:
+       image: adminer:latest
+       labels:
+          - traefik.http.routers.adminer.rule=Host(`monURL.fr`) # avec ou sans sous domaine
+          - traefik.http.routers.adminer.tls=true # utiliser le certificat TLS
+          - traefik.http.routers.adminer.tls.certresolver=lets-encrypt  # certificat TLS
+          - traefik.port=8080 # port du service au choix sauf port reservé
+       environment:
+         #ADMINER_PLUGINS: login-servers
+         ADMINER_DESIGN: hydra # design de l'interface a voir sur le site pour les autres
+
+networks:
+  default:
+    external:
+      name: web # reseaue web
+
+
+
+
