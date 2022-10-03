@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+    nomDeService1:
+      image: mysql:5.7
+      container_name: nomDeService1
+      volumes:
+        - liens_vers_mon_dossier_bdd:/var/lib/mysql            #stockage
+        - liens_vers_fichier_sql:/docker-entrypoint-initdb.d   #importation data existante
+      restart: always                                      #redémarrage automatique
+      environment:
+        MYSQL_ROOT_PASSWORD: motDePasseRoot
+        MYSQL_DATABASE: nomDeLaBdd
+        MYSQL_USER: nomUtilisateur
+        MYSQL_PASSWORD: motDePasseUtilisateur
+      labels:
+        - traefik.enable=false                             #pour ne pas exposer le service
+      networks:
+        - web                                              #réseau de communication
+
+    wp: # service wordpress
+      depends_on:
+        - nomDeService1                                   #dépendance du service
+      image: wordpress:latest                            #image wordpress
+      container_name: nomDeService2                      #nom du service
+      read_only: false                                  #lecture seule
+      expose:
+        - 80                                            #port exposé
+      restart: always                                  #redémarrage automatique
+      links:
+        - nomDeService1:nomDeService1                   #liaison avec le service mysql
+      volumes:
+        - liens_vers_fichier_de_lapp:/usr/src/wordpress
+        - liens_vers_fichier_de_lapp:/var/www/html:rw # a utiliser au demarrage une fois pour charger le code source puis a commenter
+      environment:
+        WORDPRESS_DB_HOST: nomDeService1          #nom du service mysql
+        WORDPRESS_DB_PASSWORD: motDePasseUtilisateur
+        WORDPRESS_DB_USER: nomUtilisateur
+        WORDPRESS_DB_NAME: nomDeLaBdd
+        WORDPRESS_TABLE_PREFIX: prefixe
+    labels:
+      - traefik.http.routers.nomDeMaRegle1.rule=Host(`monURL.fr`, `www.monURL.fr`) #nom de la règle (generalement le nom du container) configuration du domaine
+      - traefik.http.routers.nomDeMaRegle2.tls=true #nom de la règle (generalement le nom du container) configuration du https
+      - traefik.http.routers.nomDeMaRegle3.tls.certresolver=lets-encrypt #nom de la règle (generalement le nom du container) configuration du certificat
+      - traefik.port=80 #port liaison traefik
+    networks:
+      - web #nom du réseau interne docker
+
+networks:
+  web:
+    external: true #réseau interne docker
