@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  nomDeService1:
+    image: mysql:5.7
+    container_name: #nomDeContainer1
+    volumes:
+      - liens_vers_mon_dossier_bdd:/var/lib/mysql # volume pour la persistance des données
+      - liens_vers_fichier_sql:/docker-entrypoint-initdb.d # volume pour l'initialisation de la base de données
+    restart: always # redémarrage automatique du container en cas de plantage
+    environment:
+      MYSQL_ROOT_PASSWORD: #motDePasseRoot
+      MYSQL_DATABASE: #nomDeLaBdd
+      MYSQL_USER: #nomDeLUtilisateur
+      MYSQL_PASSWORD: #motDePasseUtilisateur
+    labels:
+      - traefik.enable=false # désactivation du reverse proxy pour ce container
+
+  php-apache-environment:
+    container_name: #nomDeContainer2
+    depends_on:
+      - nomDeService1 # dépendance du container 2 par rapport au container 1
+    build: # creation de l'image docker
+      context: .
+      dockerfile: ./Dockerfile # chemin vers le Dockerfile
+    restart: always # redémarrage automatique du container en cas de plantage
+    links:
+      - nomDeService1 # permet de lier le container 2 au container 1
+    volumes:
+      - liens_vers_fichier_de_lapp:/var/www/html/ # dossier de l'application
+    expose:
+      - 80 # port exposé
+    labels:
+      - traefik.http.routers.nomDeMaRegle1.rule=Host(`monURL.fr`, `www.monURL.fr`) #nom de la règle (generalement le nom du container) configuration du domaine
+      - traefik.http.routers.nomDeMaRegle2.tls=true #nom de la règle (generalement le nom du container) configuration du https
+      - traefik.http.routers.nomDeMaRegle3.tls.certresolver=lets-encrypt #nom de la règle (generalement le nom du container) configuration du certificat
+      - traefik.port=80 #port liaison traefik
+    networks:
+      - web #nom du réseau interne docker
+
+networks:
+  default:
+    external:
+      name: web #nom du réseau interne docker
