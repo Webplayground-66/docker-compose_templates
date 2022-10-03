@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  database:
+    container_name: database # nome do container
+    image: postgis/postgis:13-master # imagem do container
+    volumes:
+      - ../database:/var/lib/postgresql/data # volume du container gere par docker
+    networks:
+      - web # reseau du container
+    environment:
+      POSTGRES_USER: postgres # utilisateur de la base de donnees
+      POSTGRES_PASSWORD: postgres # mot de passe de la base de donnees
+      POSTGRES_DB: postgres # nom de la base de donnees
+
+  cache:
+    container_name: cache_redis # nom du container
+    image: redis:6
+    networks:
+      - web
+
+  directus:
+    container_name: directus # nom du container
+    image: directus/directus:latest
+    expose:
+      - 8055 # port d'ecoute du container
+    #volumes:
+      # By default, uploads are stored in /directus/uploads
+      # Always make sure your volumes matches the storage root when using
+      # local driver
+      # - ../uploads:/directus/uploads
+      # Make sure to also mount the volume when using SQLite
+      # - ../database:/directus/database
+      # If you want to load extensions from the host
+      # - ../extensions:/directus/extensions
+    networks:
+      - web # reseau du container
+    depends_on:
+      - cache # dependance du container
+      - database # dependance du container
+    environment:
+      KEY: 1234567890 # clef de chiffrement
+      SECRET: 1234567890 # clef de chiffrement
+
+      DB_CLIENT: 'pg'
+      DB_HOST: 'database'
+      DB_PORT: '5432'
+      DB_DATABASE: 'postgres'
+      DB_USER: 'postgres'
+      DB_PASSWORD: 'postgres'
+
+      CACHE_ENABLED: 'true'
+      CACHE_STORE: 'redis'
+      CACHE_REDIS: 'redis://cache:6379'
+
+      ADMIN_EMAIL: 'contact@webplayground.fr'
+      ADMIN_PASSWORD: '1234567890'
+
+      # Make sure to set this in production
+      # (see https://docs.directus.io/configuration/config-options/#general)
+      # PUBLIC_URL: 'https://directus.example.com'
+    
+    labels:
+      - traefik.http.routers.nomDeMaRegle1.rule=Host(`monURL.fr`, `www.monURL.fr`) #nom de la règle (generalement le nom du container) configuration du domaine
+      - traefik.http.routers.nomDeMaRegle2.tls=true #nom de la règle (generalement le nom du container) configuration du https
+      - traefik.http.routers.nomDeMaRegle3.tls.certresolver=lets-encrypt #nom de la règle (generalement le nom du container) configuration du certificat
+      - traefik.port=80 #port liaison traefik
+
+  nomDeService2:
+      build:
+        context: .
+        dockerfile: ./Dockerfile #chemin du dockerfile
+      image: nomDeService2 #nom de l'image
+      stdin_open: true #ouverture du terminal
+      tty: true #ouverture du terminal
+      depends_on:
+        - directus # dependance du container
+      expose:
+        - 3500 # port d'ecoute du container
+      labels:
+        - traefik.http.routers.nomDeMaRegle1.rule=Host(`monURL.fr`, `www.monURL.fr`) #nom de la règle (generalement le nom du container) configuration du domaine
+        - traefik.http.routers.nomDeMaRegle2.tls=true #nom de la règle (generalement le nom du container) configuration du https
+        - traefik.http.routers.nomDeMaRegle3.tls.certresolver=lets-encrypt #nom de la règle (generalement le nom du container) configuration du certificat
+        - traefik.port=80 #port liaison traefik
+      networks:
+        - web
+      volumes:
+        - ../nomDeVolume/:/usr/src/app #volume du container gere par docker
+        
+networks:
+  web:
+      external: true #reseau du container
