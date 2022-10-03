@@ -1,0 +1,158 @@
+version: "3.8"
+
+services:
+
+# service traefik
+  traefik:
+    image: traefik:latest
+    container_name: traefik
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      #http
+      - 80:80
+      #https
+      - 443:443
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik-data/traefik.toml:/traefik.toml:ro
+      - ./traefik-data/acme.json:/acme.json
+      - ./traefik-data/configurations/dynamic.toml:/etc/traefik/dynamic.toml
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    labels:
+      - "traefik.docker.network=web"
+      - "traefik.name=traefik"
+
+      - "traefik.enable=true"
+      
+      - "traefik.http.routers.traefik.entrypoints=web"
+
+      # changer le nom de domaine
+      - "traefik.http.routers.traefik.rule=Host(`admin.monURL.fr`) && (PathPrefix(`/traefik`) || PathPrefix(`/api`))"
+      
+      - "traefik.http.middlewares.traefik-stripprefix.stripprefix.prefixes=/traefik"
+      - "traefik.http.middlewares.traefik-https-redirect.redirectscheme.scheme=https"
+      
+      - "traefik.http.routers.traefik.middlewares=traefik-https-redirect,traefik-stripprefix"
+      - "traefik.http.routers.traefik-secure.entrypoints=websecure"
+
+            # changer le nom de domaine
+      - "traefik.http.routers.traefik-secure.rule=Host(`admin.monURL.fr`) && (PathPrefix(`/traefik`) || PathPrefix(`/api`))"
+      
+      - "traefik.http.middlewares.tls-rep.redirectregex.permanent=true"
+      - "traefik.http.middlewares.tls-header.headers.SSLRedirect=true"
+      - "traefik.http.middlewares.tls-header.headers.forceSTSHeader=true"
+      - "traefik.http.middlewares.tls-header.headers.STSSeconds=315360000"
+      - "traefik.http.middlewares.tls-header.headers.STSIncludeSubdomains=true"
+      - "traefik.http.middlewares.tls-header.headers.STSPreload=true"
+      - "traefik.http.middlewares.tls-header.headers.browserXSSFilter=true"
+      - "traefik.http.middlewares.tls-header.headers.contentTypeNosniff=true"
+      - "traefik.http.middlewares.tls-header.headers.frameDeny=true"
+      - "traefik.http.middlewares.tls-header.headers.customFrameOptionsValue=SAMEORIGIN"
+      - "traefik.http.middlewares.tls-header.headers.featurePolicy=accelerometer 'none'; ambient-light-sensor 'none'; camera 'none'; geolocation 'none'; gyroscope 'none'; magnetometer 'none'; microphone 'none'; usb 'none'; midi 'none'; sync-xhr 'none'; vr 'none'"
+      - "traefik.http.middlewares.tls-header.headers.referrerPolicy=strict-origin-when-cross-origin"
+
+      - "traefik.http.middlewares.tls-chain.chain.middlewares=tls-rep,tls-header"
+
+      - "traefik.http.routers.traefik-secure.middlewares=traefik-stripprefix,tls-chain"
+      - "traefik.http.routers.traefik-secure.tls=true"
+      - "traefik.http.routers.traefik-secure.tls.certresolver=lets-encrypt"
+      - "traefik.http.routers.traefik-secure.service=api@internal"
+    command:
+      - --accesslog.fields.names.StartUTC=drop
+      - --providers.docker
+
+# service portainer administration graphique des containers
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./portainer-data:/data
+    labels:
+      - traefik.http.routers.portainer.rule=Host(`docker.monURL.fr`) # changer le nom de domaine
+      - traefik.http.routers.portainer.tls=true
+      - traefik.http.routers.portainer.tls.certresolver=lets-encrypt
+      - traefik.http.services.portainer.loadbalancer.server.port=9000
+
+# api pour grafana
+  prometheus:
+    image: prom/prometheus:v2.15.2
+    restart: unless-stopped
+    container_name: prometheus
+    volumes:
+      - ./prometheus/:/etc/prometheus/
+      - prometheus:/prometheus
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    command:
+      - "--web.route-prefix=/"
+      - "--web.external-url=https://admin.monURL/prometheus" # changer le nom de domaine
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.prometheus.entrypoints=web"
+      - "traefik.http.routers.prometheus.rule=Host(`admin.monURL.fr`) && PathPrefix(`/prometheus`)" # changer le nom de domaine
+      - "traefik.http.middlewares.prometheus-stripprefix.stripprefix.prefixes=/prometheus"
+      - "traefik.http.middlewares.https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.prometheus.middlewares=https-redirect,prometheus-stripprefix"
+      - "traefik.http.routers.prometheus-secure.entrypoints=websecure"
+      - "traefik.http.routers.prometheus-secure.rule=Host(`admin.monURL.fr`) && PathPrefix(`/prometheus`)" # changer le nom de domaine
+      - "traefik.http.routers.prometheus-secure.middlewares=tls-chain,prometheus-stripprefix"
+      - "traefik.http.routers.prometheus-secure.tls=true"
+      - "traefik.http.routers.prometheus-secure.tls.certresolver=lets-encrypt"
+      - "traefik.http.routers.prometheus-secure.service=prometheus"
+      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+      - "traefik.docker.network=web"
+
+# service grafana surveillance du serveur et des containers
+  grafana:
+    image: grafana/grafana:6.6.1
+    restart: unless-stopped
+    container_name: grafana
+    volumes:
+      - grafana:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    env_file:
+      - grafana.env
+    depends_on:
+      - prometheus
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.entrypoints=web"
+      - "traefik.http.routers.grafana.rule=Host(`admin.monURL.fr`) && PathPrefix(`/grafana`)" # changer le nom de domaine
+      - "traefik.http.middlewares.grafana-stripprefix.stripprefix.prefixes=/grafana"
+      - "traefik.http.middlewares.https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.grafana.middlewares=https-redirect,grafana-stripprefix"
+      - "traefik.http.routers.grafana-secure.entrypoints=websecure"
+      - "traefik.http.routers.grafana-secure.rule=Host(`admin.monURL.fr`) && PathPrefix(`/grafana`)" # changer le nom de domaine
+      - "traefik.http.routers.grafana-secure.middlewares=tls-chain,grafana-stripprefix"
+      - "traefik.http.routers.grafana-secure.tls=true"
+      - "traefik.http.routers.grafana-secure.tls.certresolver=lets-encrypt"
+      - "traefik.http.routers.grafana-secure.service=grafana"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+      - "traefik.docker.network=web"
+
+networks:
+  default:
+    external:
+      name: web
+
+volumes:
+  prometheus:
+  grafana:

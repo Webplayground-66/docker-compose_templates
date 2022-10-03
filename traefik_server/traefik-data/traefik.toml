@@ -1,0 +1,80 @@
+[entryPoints]
+  [entryPoints.web]
+    address = ":80"
+    [entryPoints.web.http.redirections.entryPoint]
+      to = "websecure"
+      scheme = "https"
+
+  [entryPoints.websecure]
+    address = ":443"
+
+  [entryPoints.metrics]
+    address = ":8080"
+
+  [entryPoints.ssh]
+    address = ":222"
+
+  # [entryPoints.smtp]
+  #   address = ":25"
+
+  # [entryPoints.smtp-tls]
+  #   address = ":587"
+
+  # [entryPoints.smtp-ssl]
+  #   address = ":465"
+
+  # [entryPoints.plesk]
+  #   address = ":4190"
+
+  # [entryPoints.imap-ssl]
+  #   address = ":993"
+
+  # [entryPoints.pop3-ssl]
+  #   address = ":995"
+
+  # [entryPoints.pop3]
+  #   address = ":110"
+
+  # [entryPoints.trojan]
+  #   address = ":19991"
+
+  # [entryPoints.imap]
+  #   address = ":143"
+
+  # [entryPoints.solr]
+  #   address = ":18983"
+
+  # [entryPoints.redis]
+  #   address = ":7654"
+
+  # [entryPoints.sqlmailcow]
+  #   address = ":13306"
+
+[pilot]
+  token = "xxx"
+
+[api]
+  dashboard = true
+
+[certificatesResolvers.lets-encrypt.acme]
+  email = "monemail@mail.fr"
+  storage = "./acme.json"
+  [certificatesResolvers.lets-encrypt.acme.tlsChallenge]
+
+[providers.docker]
+  watch = true
+  network = "web" # Name of the docker network traefik will listen to
+
+[providers.file]
+  filename = "./configurations/dynamic.toml"
+
+[metrics.prometheus]
+entryPoint = "metrics"
+buckets = [ 0.1, 0.3, 1.2, 5.0 ]
+addEntryPointsLabels = true
+addServicesLabels = true
+
+[accessLog]
+  filePath = "./logs/access.log"
+  bufferingSize = 100
+  format = "json"

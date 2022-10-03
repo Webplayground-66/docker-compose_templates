@@ -1,0 +1,12 @@
+[http.middlewares.simpleAuth.basicAuth]
+  users = [
+    "nomUtilisateur:$apr1$./iQ1DKW$4kgw81LEOi7u2gJDJR6ly0"
+  ]
+
+[http.routers.api]
+  rule = "Host(`admin.monURL.fr`)"
+  entrypoints = ["websecure"]
+  middlewares = ["simpleAuth"]
+  service = "api@internal"
+  [http.routers.api.tls]
+    certResolver = "lets-encrypt"

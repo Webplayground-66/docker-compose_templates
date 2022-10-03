@@ -1,0 +1,16 @@
+global:
+  # Temps que prendra prometheus pour réinterroger les urls définies
+  scrape_interval:     15s
+  # Temps pour recalculer les règles au sein de Prometheus
+  evaluation_interval: 15s
+
+rule_files:
+  # Fichier de règle
+  - 'alert.rules'
+
+scrape_configs:
+  # On déclare ici le point d'entrée traefik qui expose les métriques du service
+  - job_name: 'traefik'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['traefik:8080']
