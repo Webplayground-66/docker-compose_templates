@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  nom_de_mon_service:
+      build:
+        context: .
+        dockerfile: ./Dockerfile
+      container_name: nom_de_mon_container
+      image: nom_de_mon_image
+      stdin_open: true
+      tty: true
+      expose:
+        - 3000 # port de mon application
+      labels:
+        - traefik.http.routers.nomDeMaRegle1.rule=Host(`monURL.fr`, `www.monURL.fr`) #nom de la règle (generalement le nom du container) configuration du domaine
+        - traefik.http.routers.nomDeMaRegle2.tls=true #nom de la règle (generalement le nom du container) configuration du https
+        - traefik.http.routers.nomDeMaRegle3.tls.certresolver=lets-encrypt #nom de la règle (generalement le nom du container) configuration du certificat
+        - traefik.port=80 #port liaison traefik
+      networks:
+        - web
+      command: npm start #commande de lancement de mon application
+
+networks:
+  web:
+    external: true #liaison avec le réseau traefik
