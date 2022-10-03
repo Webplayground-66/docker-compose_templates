@@ -7,3 +7,5 @@ RUN chown root:msmtp /etc/msmtprc
 RUN chmod 640 /etc/msmtprc
 RUN echo 'sendmail_path = /usr/bin/msmtp -t' > /usr/local/etc/php/php.ini
 RUN docker-php-ext-install pdo_mysql
+
+# fichier pour le serveur de mail
